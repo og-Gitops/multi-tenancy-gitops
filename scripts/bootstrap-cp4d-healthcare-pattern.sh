@@ -2,6 +2,7 @@
 
 set -eo pipefail
 
+USE_CPD_HEALTHCARE_PATTERN=${USE_CPD_HEALTHCARE_PATTERN:-true}
 USE_GITEA=${USE_GITEA:-false}
 
 if [[ "${USE_GITEA}" == "true" ]]; then
@@ -294,6 +295,7 @@ apply_argocd_git_override_configmap () {
 
   popd
 }
+
 argocd_git_override () {
   echo "Deploying argocd-git-override webhook"
   oc apply -n ${GIT_GITOPS_NAMESPACE} -f https://github.com/csantanapr/argocd-git-override/releases/download/v1.1.0/deployment.yaml
@@ -302,6 +304,41 @@ argocd_git_override () {
   sleep 5
   oc wait pod --timeout=-1s --for=condition=Ready --all -n ${GIT_GITOPS_NAMESPACE} > /dev/null
 }
+
+set_infra_and_services_for_c4pd () {
+  SCRIPTDIR2="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+  find ${SCRIPTDIR2}/0-bootstrap/single-cluster/1-infra -name 'kustomization.yaml' -print0 |
+    while IFS= read -r -d '' File; do
+      if grep -q "argocd/namespace-ibm-common-services.yaml" "$File"; then
+        #vecho "updating... $File"
+        sed -i '.bak' -e 's/#- argocd\/namespace-ibm-common-services.yaml/\- argocd\/namespace-ibm-common-services.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/namespace-tools.yaml/\- argocd\/namespace-tools.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/serviceaccounts-tools.yaml/\- argocd\/serviceaccounts-tools.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/scc-wkc-iis.yaml/\- argocd\/scc-wkc-iis.yaml/g' $File
+        rm "${File}.bak"
+      fi
+    done
+
+  find ${SCRIPTDIR2}/0-bootstrap/single-cluster/2-services -name 'kustomization.yaml' -print0 |
+    while IFS= read -r -d '' File; do
+      if grep -q "argocd/operators/ibm-cpd-scheduling-operator.yaml" "$File"; then
+        #vecho "updating... $File"
+        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-scheduling-operator.yaml/\- argocd\/operators\/ibm-cpd-scheduling-operator.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-platform-operator.yaml/\- argocd\/operators\/ibm-cpd-platform-operator.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/instances\/ibm-cpd-instance.yaml/\- argocd\/instances\/ibm-cpd-instance.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-wkc-operator.yaml/\- argocd\/operators\/ibm-cpd-wkc-operator.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/instances\/ibm-cpd-wkc-instance.yaml/\- argocd\/instances\/ibm-cpd-wkc-instance.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-ds-operator.yaml/\- argocd\/operators\/ibm-cpd-ds-operator.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/instances\/ibm-cpd-ds-instance.yaml/\- argocd\/instances\/ibm-cpd-ds-instance.yaml/g' $File
+        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-catalogs.yaml/\- argocd\/operators\/ibm-catalogs.yaml/g' $File
+        rm "${File}.bak"
+      fi
+    done
+    # echo "done replacing variables in kustomization.yaml of 1-infra and 2-services"
+    # echo "git commit and push changes now"
+}
+
 
 set_git_source () {
   echo setting git source instead of git override
@@ -312,6 +349,11 @@ set_git_source () {
   fi
 
   GIT_ORG=${GIT_ORG} GIT_GITOPS_NAMESPACE=${GIT_GITOPS_NAMESPACE} source ./scripts/set-git-source.sh
+
+  if [[ "${USE_CPD_HEALTHCARE_PATTERN}" == "true" ]]; then
+    set_infra_and_services_for_c4pd
+  fi
+
   if [[ ${GIT_TOKEN} ]]; then
     git remote set-url origin ${GIT_PROTOCOL}://${GIT_TOKEN}@${GIT_HOST}/${GIT_ORG}/${GIT_GITOPS}
   fi
