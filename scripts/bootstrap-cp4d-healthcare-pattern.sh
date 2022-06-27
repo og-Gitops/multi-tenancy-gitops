@@ -358,31 +358,6 @@ set_git_source () {
   fi
   set +e
   git add .
-      if grep -q "argocd/namespace-ibm-common-services.yaml" "$File"; then
-        #vecho "updating... $File"
-        sed -i '.bak' -e 's/#- argocd\/namespace-ibm-common-services.yaml/\- argocd\/namespace-ibm-common-services.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/namespace-tools.yaml/\- argocd\/namespace-tools.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/serviceaccounts-tools.yaml/\- argocd\/serviceaccounts-tools.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/scc-wkc-iis.yaml/\- argocd\/scc-wkc-iis.yaml/g' $File
-        rm "${File}.bak"
-      fi
-    done
-
-  find ${SCRIPTDIR2}/0-bootstrap/single-cluster/2-services -name 'kustomization.yaml' -print0 |
-    while IFS= read -r -d '' File; do
-      if grep -q "argocd/operators/ibm-cpd-scheduling-operator.yaml" "$File"; then
-        #vecho "updating... $File"
-        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-scheduling-operator.yaml/\- argocd\/operators\/ibm-cpd-scheduling-operator.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-platform-operator.yaml/\- argocd\/operators\/ibm-cpd-platform-operator.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/instances\/ibm-cpd-instance.yaml/\- argocd\/instances\/ibm-cpd-instance.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-wkc-operator.yaml/\- argocd\/operators\/ibm-cpd-wkc-operator.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/instances\/ibm-cpd-wkc-instance.yaml/\- argocd\/instances\/ibm-cpd-wkc-instance.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-cpd-ds-operator.yaml/\- argocd\/operators\/ibm-cpd-ds-operator.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/instances\/ibm-cpd-ds-instance.yaml/\- argocd\/instances\/ibm-cpd-ds-instance.yaml/g' $File
-        sed -i '.bak' -e 's/#- argocd\/operators\/ibm-catalogs.yaml/\- argocd\/operators\/ibm-catalogs.yaml/g' $File
-        rm "${File}.bak"
-      fi
-    done
   git commit -m "Updating git source to ${GIT_ORG}"
   git push origin
   set -e
